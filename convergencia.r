@@ -1,6 +1,11 @@
+#install.packages(c("dplyr", "ggplot2", "glue", "readr", "rlang", "tidyr"))
+
 library(dplyr)
 library(ggplot2)
+library(glue)
+library(readr)
 library(rlang)
+library(tidyr)
 
 source('utils.r')
 
@@ -24,9 +29,10 @@ calcular_convergencia_beta = function(dados, ano_inicial, ano_final) {
         labs(
             title=glue("Convergência Beta ({ano_inicial}–{ano_final})"),
             x=glue("Log do PIB per capita em {ano_inicial}"),
-            y="Crescimento médio anual (log)"
+            y="Variação do log do PIB per capita"
         ) +
-        theme_minimal()
+        theme_minimal() +
+        theme(panel.grid=element_blank())
 
     return(list(modelo=modelo, grafico=grafico))
 }
@@ -54,9 +60,10 @@ calcular_convergencia_sigma = function(dados) {
         labs(
             title="Convergência Sigma",
             x="Ano",
-            y="Desvio padrão de ln PIB per capita"
+            y="Desvio padrão do log do PIB per capita"
         ) +
-        theme_minimal()
+        theme_minimal() +
+        theme(panel.grid=element_blank())
 
     return(list(modelo=modelo, grafico=grafico))
 }
