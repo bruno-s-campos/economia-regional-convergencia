@@ -3,6 +3,7 @@
 library(dplyr)
 library(ggplot2)
 library(glue)
+library(geobr)
 library(readr)
 library(rlang)
 library(tidyr)
@@ -79,3 +80,29 @@ summary(resultado_beta$modelo)
 resultado_sigma = calcular_convergencia_sigma(dados_ppc)
 resultado_sigma$grafico
 summary(resultado_sigma$modelo)
+
+dados_ppc$residuos_conv_beta = resid(resultado_beta$modelo)
+
+estados = read_state(year=2020)
+mapa_com_residuos = estados %>% left_join(dados_ppc, by=c("code_state"="codigo"))
+
+mapa_com_residuos$residuos_cat = cut(
+    mapa_com_residuos$residuos_conv_beta,
+    breaks=5,
+    include.lowest=TRUE
+)
+
+ggplot(mapa_com_residuos) +
+    geom_sf(aes(fill=residuos_cat)) +
+    scale_fill_brewer(palette="RdBu", name="Resíduos") +
+    theme_minimal() +
+    theme(
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()
+    ) +
+    labs(title="Mapa dos resíduos")
+
+viz = poly2nb(mapa_com_residuos, queen=TRUE)
+pesos = nb2listw(viz, style="W")
+moran.test(mapa_com_residuos$residuos_conv_beta, pesos)
