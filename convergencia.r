@@ -1,12 +1,16 @@
-#install.packages(c("dplyr", "ggplot2", "glue", "readr", "rlang", "tidyr"))
+#install.packages(c("dplyr", "ggplot2", "glue", "geobr", "readr", "rlang", "spdep", "tidyr"))
 
 library(dplyr)
 library(ggplot2)
 library(glue)
 library(geobr)
+library(RColorBrewer)
 library(readr)
 library(rlang)
+library(sf)
+library(spdep)
 library(tidyr)
+library(tmap)
 
 source('utils.r')
 
@@ -105,4 +109,48 @@ ggplot(mapa_com_residuos) +
 
 viz = poly2nb(mapa_com_residuos, queen=TRUE)
 pesos = nb2listw(viz, style="W")
-moran.test(mapa_com_residuos$residuos_conv_beta, pesos)
+resultado_moran = moran.test(mapa_com_residuos$residuos_conv_beta, pesos)
+i_moran = round(resultado_moran$estimate[["Moran I statistic"]], 3)
+
+moran = moran.plot(mapa_com_residuos$residuos_conv_beta, pesos,
+    labels=mapa_com_residuos$sigla,
+    xlab="Resíduos",
+    ylab="Média dos resíduos dos vizinhos",
+    main=glue("Diagrama de Dispersão de Moran ({i_moran})"))
+
+lisa = localmoran(mapa_com_residuos$residuos_conv_beta, pesos)
+mapa_com_residuos$lisa_I = lisa[, 1]
+mapa_com_residuos$lisa_p = lisa[, 5]
+
+media_ppc = mean(mapa_com_residuos$residuos_conv_beta)
+media_viz = lag.listw(pesos, mapa_com_residuos$residuos_conv_beta)
+
+mapa_com_residuos$cluster = NA
+mapa_com_residuos$cluster[mapa_com_residuos$residuos_conv_beta >= media_ppc & media_viz >= media_ppc & mapa_com_residuos$lisa_p <= 0.1] = "High-High"
+mapa_com_residuos$cluster[mapa_com_residuos$residuos_conv_beta <= media_ppc & media_viz <= media_ppc & mapa_com_residuos$lisa_p <= 0.1] = "Low-Low"
+mapa_com_residuos$cluster[mapa_com_residuos$residuos_conv_beta >= media_ppc & media_viz <= media_ppc & mapa_com_residuos$lisa_p <= 0.1] = "High-Low"
+mapa_com_residuos$cluster[mapa_com_residuos$residuos_conv_beta <= media_ppc & media_viz >= media_ppc & mapa_com_residuos$lisa_p <= 0.1] = "Low-High"
+mapa_com_residuos$cluster[is.na(mapa_com_residuos$cluster)] = "Not Significant"
+
+ggplot(mapa_com_residuos) +
+    geom_sf(aes(fill = cluster), color = "white") +
+    scale_fill_manual(
+        values = c(
+            "High-High" = "#2166ac",
+            "Low-Low" = "#b2182b",
+            "High-Low" = "#92c5de",
+            "Low-High" = "#f4a582",
+            "Not Significant" = "gray80"
+        ),
+        name = "Cluster LISA"
+    ) +
+    theme_minimal() +
+    theme(
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()
+    ) +
+    labs(
+        title = "LISA: Clusters de PIB per capita dos resíduos",
+        subtitle = "Baseado no I de Moran Local (p < 0.1)"
+    )
