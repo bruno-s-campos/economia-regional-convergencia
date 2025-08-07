@@ -8,6 +8,7 @@ library(RColorBrewer)
 library(readr)
 library(rlang)
 library(sf)
+library(spatialreg)
 library(spdep)
 library(tidyr)
 library(tmap)
@@ -154,3 +155,19 @@ ggplot(mapa_com_residuos) +
         title = "LISA: Clusters de PIB per capita dos resíduos",
         subtitle = "Baseado no I de Moran Local (p < 0.1)"
     )
+
+ano_inicial = 1996
+ano_final = 2021
+tempo = ano_final - ano_inicial
+y0 = glue("ppc_{ano_inicial}")
+yt = glue("ppc_{ano_final}")
+
+mapa_com_residuos = mapa_com_residuos %>% mutate(
+    crescimento=(!!sym(yt) - !!sym(y0)) / tempo,
+    ln_ppc_inicial=!!sym(y0)
+)
+
+modelo_sar = lagsarlm(crescimento ~ ln_ppc_inicial, data=mapa_com_residuos, listw=pesos)
+
+# Resultado
+summary(modelo_sar)
